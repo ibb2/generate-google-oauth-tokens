@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "generate-google-token-function"
+version = "0.1.0"
+description = ""
+authors = ["ibb2 <70052141+ibb2@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "generate_google_token_function"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.1.3"
+djangorestframework = "^3.15.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
