@@ -1,15 +1,18 @@
 import os
 
 import requests
+from django.http import JsonResponse
 from dotenv import load_dotenv
 
 from rest_framework.decorators import api_view
+from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
-from .serializers import TokenSerializer
+from .serializers import TokenSerializer, RefreshTokenSerializer
 
 # load env
 load_dotenv()
+
 
 # Create your views here.
 
@@ -50,11 +53,10 @@ def generate_oauth_tokens(request):
     """
 
     if request.method == "GET":
-        return Response("Please use POST request", status = 301)
+        return Response("Please use POST request", status=301)
 
-    if request.method == "POST":
-        print(f'Request data {request.data}')
-        serializer = TokenSerializer(data = request.data)
+    elif request.method == "POST":
+        serializer = TokenSerializer(data=request.data)
         if serializer.is_valid():
 
             try:
@@ -63,11 +65,12 @@ def generate_oauth_tokens(request):
 
                 # Setting payload
                 payload = {
-                    "code": code, # Authorization code
-                    "client_id": os.environ.get("GOOGLE_CLIENT_ID"), # Google OAuth Client ID
-                    "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"), # Google OAuth Client Secret
-                    "redirect_uri": os.environ.get("REDIRECT_URI"), # Redirect URI, has to match Google OAuth Redirect URI
-                    "grant_type": os.environ.get("GRANT_TYPE") # Grant type (always authorization_code)
+                    "code": code,  # Authorization code
+                    "client_id": os.environ.get("GOOGLE_CLIENT_ID"),  # Google OAuth Client ID
+                    "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),  # Google OAuth Client Secret
+                    "redirect_uri": os.environ.get("REDIRECT_URI"),
+                    # Redirect URI, has to match Google OAuth Redirect URI
+                    "grant_type": os.environ.get("GRANT_TYPE")  # Grant type (type of token exchange)
                 }
 
                 # Making request to Google token endpoint, as defined in the OAuth 2.0 specification
@@ -76,22 +79,104 @@ def generate_oauth_tokens(request):
                 match r.status_code:
                     # Handling response
                     case range(200, 299):
-                        return Response(r.json(), status = r.status_code)
+                        return Response(r.json(), status=r.status_code)
                     # Handling errors
                     case 400:
-                        return Response(r.json(), status = 400)
+                        return Response(r.json(), status=400)
                     case 401:
-                        return Response(r.json(), status = 401)
+                        return Response(r.json(), status=401)
                     case 403:
-                        return Response(r.json(), status = 403)
+                        return Response(r.json(), status=403)
                     case 404:
-                        return Response(r.json(), status = 404)
+                        return Response(r.json(), status=404)
                     case 500:
-                        return Response(r.json(), status = 500)
+                        return Response(r.json(), status=500)
                     case _:
-                        return Response(r.json(), status = r.status_code)
+                        return Response(r.json(), status=r.status_code)
 
             except ConnectionError as E:
-                return Response(E, status = 503)
+                return Response(E, status=503)
 
-        return Response("Invalid data", status = 400)
+        return Response("Invalid data", status=400)
+
+@api_view(["POST"])
+def refresh_access_token(request):
+    """
+    Refreshes OAuth access tokens using the provided refresh token.
+
+    This function exchanges the refresh token for access tokens,
+    following the OAuth 2.0 protocol. For details, refer to:
+    https://developers.google.com/identity/protocols/oauth2/native-app#offline
+
+    Parameters
+    ----------
+    request : Request
+        The request object containing the following required attributes:
+            - client_id (str): Your application's Google OAuth Client ID.
+            - client_secret (str): Your application's Google OAuth Client Secret.
+            - grant_type (str): The grant type, which must be set to "authorization_code".
+            - refresh_token (str): A token used to obtain a new access token when the current one expires.
+
+    Returns
+    -------
+    response : Response
+        A response object containing the following attributes:
+            - access_token (str): The token that grants access to protected resources.
+            - id_token (str): A token that contains user identity information.
+            - refresh_token (str, optional): A token used to obtain a new access token when the current one expires.
+            - expires_in (int): The remaining lifetime of the access token in seconds.
+            - scope (str): The scopes associated with the granted access token.
+
+    Raises
+    ------
+    OAuthException
+        If the authorization code exchange fails, this exception is raised with details about the error.
+    """
+
+    if request.method == "GET":
+        return Response("Please use POST request", status=301)
+
+    elif request.method == "POST":
+        serializer = RefreshTokenSerializer(data=request.data)
+        if serializer.is_valid():
+            print(request.data)
+            try:
+                refresh_token = serializer.data['refresh_token']
+                print(f'refresh_token: {refresh_token}')
+
+                # Setting payload
+                payload = {
+                    "client_id": os.environ.get("GOOGLE_CLIENT_ID"),  # Google OAuth Client ID
+                    "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),  # Google OAuth Client Secret
+                    "refresh_token": refresh_token, # Refresh token (type of token refresh)
+                    "grant_type": "refresh_token",  # Set grant type to refresh token
+                    "redirect_uri": os.environ.get("REDIRECT_URI")
+                }
+
+                print(f"Payload {payload}")
+
+                # Making request to Google token endpoint, as defined in the OAuth 2.0 specification
+                r = requests.post("https://oauth2.googleapis.com/token", payload)
+
+                match r.status_code:
+                    # Handling response
+                    case range(200, 299):
+                        return Response(r.json(), status=r.status_code)
+                    # Handling errors
+                    case 400:
+                        return Response(r.json(), status=400)
+                    case 401:
+                        return Response(r.json(), status=401)
+                    case 403:
+                        return Response(r.json(), status=403)
+                    case 404:
+                        return Response(r.json(), status=404)
+                    case 500:
+                        return Response(r.json(), status=500)
+                    case _:
+                        return Response(r.json(), status=r.status_code)
+
+            except ConnectionError as E:
+                return Response(E, status=503)
+
+        return Response("Invalid data", status=400)
