@@ -68,31 +68,14 @@ def generate_oauth_tokens(request):
                     "code": code,  # Authorization code
                     "client_id": os.environ.get("GOOGLE_CLIENT_ID"),  # Google OAuth Client ID
                     "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),  # Google OAuth Client Secret
-                    "redirect_uri": os.environ.get("REDIRECT_URI"),
-                    # Redirect URI, has to match Google OAuth Redirect URI
+                    "redirect_uri": os.environ.get("REDIRECT_URI"), # Redirect URI, has to match Google OAuth Redirect URI
                     "grant_type": os.environ.get("GRANT_TYPE")  # Grant type (type of token exchange)
                 }
 
                 # Making request to Google token endpoint, as defined in the OAuth 2.0 specification
                 r = requests.post("https://oauth2.googleapis.com/token", payload)
 
-                match r.status_code:
-                    # Handling response
-                    case range(200, 299):
-                        return Response(r.json(), status=r.status_code)
-                    # Handling errors
-                    case 400:
-                        return Response(r.json(), status=400)
-                    case 401:
-                        return Response(r.json(), status=401)
-                    case 403:
-                        return Response(r.json(), status=403)
-                    case 404:
-                        return Response(r.json(), status=404)
-                    case 500:
-                        return Response(r.json(), status=500)
-                    case _:
-                        return Response(r.json(), status=r.status_code)
+                return Response(r.json(), status=r.status_code)
 
             except ConnectionError as E:
                 return Response(E, status=503)
@@ -150,7 +133,6 @@ def refresh_access_token(request):
                     "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),  # Google OAuth Client Secret
                     "refresh_token": refresh_token, # Refresh token (type of token refresh)
                     "grant_type": "refresh_token",  # Set grant type to refresh token
-                    "redirect_uri": os.environ.get("REDIRECT_URI")
                 }
 
                 print(f"Payload {payload}")
