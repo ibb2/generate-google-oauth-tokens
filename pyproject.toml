@@ -5,6 +5,7 @@ description = ""
 authors = ["ibb2 <70052141+ibb2@users.noreply.github.com>"]
 readme = "README.md"
 packages = [{include = "generate_google_token_function"}]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
